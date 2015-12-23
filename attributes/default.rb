@@ -11,3 +11,10 @@ default['percona']['replication']['templates']['slave.cnf']['source'] = 'slave.c
 
 default['percona']['replication']['templates']['master.cnf']['cookbook'] = 'percona-multi'
 default['percona']['replication']['templates']['master.cnf']['source'] = 'master.cnf.erb'
+
+case node["platform_family"]
+when "debian"
+  default["percona"]["main_config_file"] = "/etc/mysql/my.cnf"
+when "rhel"
+  default["percona"]["main_config_file"] = "/etc/my.cnf"
+end

@@ -3,6 +3,10 @@ percona-multi CHANGELOG
 
 This file is used to list changes made in each version of the percona-multi cookbook.
 
+0.2.1
+-----
+Fix path to my.cnf config file for Debian OS family
+
 0.2.0
 -----
 Cookbook refactored due several problems on CentOS 7.1:
