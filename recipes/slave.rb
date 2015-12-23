@@ -26,6 +26,7 @@ include_recipe 'apt' if platform_family?('debian')
 include_recipe 'build-essential'
 include_recipe 'percona::server'
 
+=begin
 # adds directory if not created by service (only needed on rhel)
 if platform_family?('rhel')
   directory '/etc/mysql/conf.d' do
@@ -51,10 +52,12 @@ unless File.exist?("#{node['percona']['server']['datadir']}/.replication")
     action :install
   end
 end
+=end
 
 # creates unique serverid via ipaddress to an int
 require 'ipaddr'
-serverid = IPAddr.new node['ipaddress']
+#serverid = IPAddr.new node['ipaddress']
+serverid = IPAddr.new node['percona']['server']['bind_address']
 serverid = serverid.to_i
 
 passwords = EncryptedPasswords.new(node, node['percona']['encrypted_data_bag'])
@@ -70,10 +73,12 @@ template "#{node['percona']['server']['includedir']}slave.cnf" do
   notifies :restart, 'service[mysql]', :immediately
 end
 
+=begin
 # pull data from master, but only on first run
 host = node['percona']['master']
 user = node['percona']['server']['replication']['username']
 passwd = passwords.replication_password
+
 
 unless File.exist?("#{node['percona']['server']['datadir']}/.replication")
   if Chef::Config[:solo]
@@ -87,7 +92,31 @@ unless File.exist?("#{node['percona']['server']['datadir']}/.replication")
     end
   end
 end
+=end
 
+# create and execute slave replication setup
+ruby_block 'execute slave replication setup' do
+  block do
+    host = node['percona']['master']
+    user = node['percona']['server']['replication']['username']
+    passwd = passwords.replication_password
+    if Chef::Config[:solo]
+      Chef::Log.warn('This only works on a chef server not chef solo.')
+    else
+      bin_log, bin_pos = PerconaRep.bininfo(host, user, passwd)
+      Chef::Log.info("binlog- #{bin_log} and binpos- #{bin_pos}")
+    end
+    query = <<-EOF
+      CHANGE MASTER TO MASTER_HOST='#{host}', MASTER_USER='#{user}', MASTER_PASSWORD='#{passwd}', MASTER_LOG_FILE='#{bin_log}', MASTER_LOG_POS=#{bin_pos}, MASTER_CONNECT_RETRY=10;
+      START SLAVE;
+    EOF
+    PerconaRep.query(query, 'root', passwords.root_password)
+    updated = true
+  end
+  not_if { File.exist?("#{node['percona']['server']['datadir']}/.replication") }
+end
+
+=begin
 # create and execute slave replication setup
 execute 'set_master' do
   command <<-EOH
@@ -113,6 +142,7 @@ template '/root/change.master.sql' do
   notifies :run, 'execute[set_master]', :immediately
   not_if { File.exist?("#{node['percona']['server']['datadir']}/.replication") }
 end
+=end
 
 tag('percona_slave')
 

@@ -23,7 +23,8 @@ include_recipe 'percona::server'
 
 # creates unique serverid via ipaddress to an int
 require 'ipaddr'
-serverid = IPAddr.new node['ipaddress']
+#serverid = IPAddr.new node['ipaddress']
+serverid = IPAddr.new node['percona']['server']['bind_address']
 serverid = serverid.to_i
 
 passwords = EncryptedPasswords.new(node, node['percona']['encrypted_data_bag'])
